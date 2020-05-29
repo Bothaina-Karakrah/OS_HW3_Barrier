@@ -14,18 +14,47 @@ class List
         /**
          * Constructor
          */
-        List() { //TODO: add your implementation }
+        List() { //TODO: add your implementation
+             }
 
         /**
          * Destructor
          */
-        ~List(){ //TODO: add your implementation }
+        ~List(){ //TODO: add your implementation
+             }
 
         class Node {
          public:
           T data;
           Node *next;
           // TODO: Add your methods and data members
+          pthread_mutex_t m;
+
+            Node(T data){
+                this->data=data;
+                this->next= nullptr;
+                try{
+                    pthread_mutex_init(&this->m, NULL);
+                }
+                catch (...){
+                    std::cerr << "pthread_mutex_init: failed" << std::endl;
+                    exit(-1);
+                }
+            }
+            Node(){
+                this->next = NULL;
+                pthread_mutex_init(&this->m, NULL);
+            }
+            ~Node(){
+                pthread_mutex_destroy(&this->m);
+            }
+            void lock(){
+                pthread_mutex_lock(&this->m);
+            }
+            void unlock(){
+                pthread_mutex_unlock(&this->m);
+            }
+
         };
 
         /**
@@ -53,6 +82,7 @@ class List
          */
         unsigned int getSize() {
 			//TODO: add your implementation
+            return this->len;
         }
 
 		// Don't remove
@@ -86,6 +116,8 @@ class List
     private:
         Node* head;
     // TODO: Add your own methods and data members
+    int len;
+    pthread_mutex_t list_mutex;
 };
 
 #endif //THREAD_SAFE_LIST_H_
