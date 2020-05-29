@@ -11,7 +11,12 @@ public:
 
 	// TODO: define the member variables
 	// Remember: you can only use semaphores!
+    sem_t mutex;
+    sem_t sem1;
+    sem_t sem2;
+    unsigned int threadsNum;
+    unsigned int currCounter;
+    bool state;
 };
 
 #endif // BARRIER_H_
-
