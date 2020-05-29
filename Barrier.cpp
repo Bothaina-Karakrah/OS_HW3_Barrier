@@ -35,15 +35,9 @@ void Barrier::wait() {
     return;
 }
 
-unsigned int Barrier::waitingThreads() {
-    if(!this->state){
-        return (this->threads - this->curr);
-    }
-    return this->curr;
-}
 
 Barrier::~Barrier() {
     sem_destroy(&mutex);
-    sem_destroy(&temp1);
-    sem_destroy(&temp2);
+    sem_destroy(&sem1);
+    sem_destroy(&sem2);
 }
