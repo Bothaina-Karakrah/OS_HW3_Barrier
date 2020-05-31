@@ -15,44 +15,60 @@ class List
          * Constructor
          */
         List() { //TODO: add your implementation
-             }
+            head = new Node();
+            if (!head)
+                cerr << "init list faield" << endl;
+
+            this->list_len = 0;
+            pthread_mutex_init(&list_m, NULL);
+        }
+
+        void listDistroy(Node* head){
+            if(!head)
+                return;
+            listDistroy(head->next);
+            free(head);
+        }
 
         /**
          * Destructor
          */
         ~List(){ //TODO: add your implementation
+            listDistroy(this->head);
+            pthread_mutex_destroy(this->list_m);
              }
+
 
         class Node {
          public:
           T data;
           Node *next;
-          // TODO: Add your methods and data members
-          pthread_mutex_t m;
+          pthread_mutex_t node_m;
 
             Node(T data){
                 this->data=data;
-                this->next= nullptr;
+                this->next= NULL;
                 try{
-                    pthread_mutex_init(&this->m, NULL);
+                    pthread_mutex_init(&this->node_m, NULL);
                 }
                 catch (...){
                     std::cerr << "pthread_mutex_init: failed" << std::endl;
-                    exit(-1);
                 }
             }
+
             Node(){
                 this->next = NULL;
-                pthread_mutex_init(&this->m, NULL);
+                pthread_mutex_init(&this->node_m, NULL);
             }
+
+            Node(T data, Node* nextNode){
+                this->data = data;
+                this->next = nextNode;
+                pthread_mutex_init(&node_m, NULL);
+            }
+
             ~Node(){
-                pthread_mutex_destroy(&this->m);
-            }
-            void lock(){
-                pthread_mutex_lock(&this->m);
-            }
-            void unlock(){
-                pthread_mutex_unlock(&this->m);
+                pthread_mutex_destroy(&this->node_m);
             }
 
         };
@@ -64,7 +80,50 @@ class List
          * @return true if a new node was added and false otherwise
          */
         bool insert(const T& data) {
-			//TODO: add your implementation
+			pthread_mutex_lock(&head->node_m);
+			Node* prev = head;
+			Node* curr = head->next;
+			if(curr!=NULL){
+			    pthread_mutex_lock(&curr->node_m);
+			}
+
+			while(curr!= NULL && curr->data < data){
+			    pthread_mutex_unlock(&prev->node_m);
+			    prev = curr;
+			    curr = curr->next;
+			    if(curr!=NULL){
+			        pthread_mutex_lock(&curr->node_m);
+			    }
+			}
+
+			if(curr == NULL){
+			    Node *new_node = new Node(data);
+			    prev->next = new_node;
+			    new_node->next = NULL;
+                pthread_mutex_lock(&list_m);
+                list_len++;
+                pthread_mutex_unlock(&list_m);
+			    __insert_test_hook();
+			    pthread_mutex_unlock(&prev->node_m);
+			    return true;
+			}
+
+			if(curr->data == data){
+                pthread_mutex_unlock(&prev->node_m);
+			    pthread_mutex_unlock(&curr->node_m);
+                return false;
+			}
+
+			Node* new_node = new Node(data);
+            prev->next = new_node;
+			new_node->next = curr;
+			pthread_mutex_lock(&list_m);
+			list_len++;
+			pthread_mutex_unlock(&list_m);
+			__insert_test_hook();
+			pthread_mutex_unlock(&prev->node_m);
+			pthread_mutex_unlock(&curr->node_m);
+			return true;
         }
 
         /**
@@ -73,7 +132,42 @@ class List
          * @return true if a matched node was found and removed and false otherwise
          */
         bool remove(const T& value) {
-			//TODO: add your implementation
+			pthread_mutex_lock(&head->node_m);
+			Node* prev = head;
+			Node* curr = prev->next;
+
+			if(curr != NULL){
+			    pthread_mutex_lock(&curr->node_m);
+			}
+
+			while(curr!= NULL && curr->data < value){
+			    pthread_mutex_unlock(&prev->node_m);
+			    prev = curr;
+			    curr = curr->next;
+			    if(curr!=NULL){
+			        pthread_mutex_lock(&curr->node_m);
+			    }
+			}
+
+			if(curr == NULL){
+			    pthread_mutex_unlock(&prev->node_m);
+			    return false;
+			}
+
+			if(curr->data == value){
+			    prev->next = curr->next;
+			    pthread_mutex_lock(&list_m);
+			    list_len--;
+			    pthread_mutex_unlock(&list_m);
+			    __remove_test_hook();
+			    pthread_mutex_unlock(&prev->node_m);
+			    pthread_mutex_unlock(&curr->node_m);
+			    return true;
+			}
+
+            pthread_mutex_unlock(&prev->node_m);
+            pthread_mutex_unlock(&curr->node_m);
+            return false;
         }
 
         /**
@@ -81,8 +175,10 @@ class List
          * @return current size of the list
          */
         unsigned int getSize() {
-			//TODO: add your implementation
-            return this->len;
+            pthread_mutex_lock(&list_m);
+            unsigned int size = this->len;
+            pthread_mutex_unlock(&list_m);
+            return size;
         }
 
 		// Don't remove
@@ -115,9 +211,8 @@ class List
 
     private:
         Node* head;
-    // TODO: Add your own methods and data members
-    int len;
-    pthread_mutex_t list_mutex;
+        unsigned int list_len;
+        pthread_mutex_t  list_m;
 };
 
 #endif //THREAD_SAFE_LIST_H_
