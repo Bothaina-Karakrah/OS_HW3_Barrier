@@ -11,6 +11,39 @@ template <typename T>
 class List 
 {
     public:
+    class Node {
+    public:
+        T data;
+        Node *next;
+        pthread_mutex_t node_m;
+
+        Node(T data){
+            this->data=data;
+            this->next= NULL;
+            try{
+                pthread_mutex_init(&this->node_m, NULL);
+            }
+            catch (...){
+                std::cerr << "pthread_mutex_init: failed" << std::endl;
+            }
+        }
+
+        Node(){
+            this->next = NULL;
+            pthread_mutex_init(&this->node_m, NULL);
+        }
+
+        Node(T data, Node* nextNode){
+            this->data = data;
+            this->next = nextNode;
+            pthread_mutex_init(&node_m, NULL);
+        }
+
+        ~Node(){
+            pthread_mutex_destroy(&this->node_m);
+        }
+
+    };
         /**
          * Constructor
          */
@@ -35,43 +68,9 @@ class List
          */
         ~List(){ //TODO: add your implementation
             listDistroy(this->head);
-            pthread_mutex_destroy(this->list_m);
+            pthread_mutex_destroy(&this->list_m);
              }
 
-
-        class Node {
-         public:
-          T data;
-          Node *next;
-          pthread_mutex_t node_m;
-
-            Node(T data){
-                this->data=data;
-                this->next= NULL;
-                try{
-                    pthread_mutex_init(&this->node_m, NULL);
-                }
-                catch (...){
-                    std::cerr << "pthread_mutex_init: failed" << std::endl;
-                }
-            }
-
-            Node(){
-                this->next = NULL;
-                pthread_mutex_init(&this->node_m, NULL);
-            }
-
-            Node(T data, Node* nextNode){
-                this->data = data;
-                this->next = nextNode;
-                pthread_mutex_init(&node_m, NULL);
-            }
-
-            ~Node(){
-                pthread_mutex_destroy(&this->node_m);
-            }
-
-        };
 
         /**
          * Insert new node to list while keeping the list ordered in an ascending order
@@ -176,14 +175,14 @@ class List
          */
         unsigned int getSize() {
             pthread_mutex_lock(&list_m);
-            unsigned int size = this->len;
+            unsigned int size = this->list_len;
             pthread_mutex_unlock(&list_m);
             return size;
         }
 
 		// Don't remove
         void print() {
-          Node* temp = head;
+          Node* temp = head->next;
           if (temp == NULL)
           {
             cout << "";
