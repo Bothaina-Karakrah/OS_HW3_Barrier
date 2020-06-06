@@ -17,8 +17,6 @@ public:
     sem_t sem2;
     unsigned int threadCounter;
     unsigned int currThreads;
-    bool state;
 };
 
 #endif // BARRIER_H_
-
