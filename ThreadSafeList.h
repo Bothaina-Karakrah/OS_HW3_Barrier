@@ -50,7 +50,7 @@ class List
         List() { //TODO: add your implementation
             head = new Node();
             if (!head)
-                cerr << "init list faield" << endl;
+                cerr << "init list failed" << endl;
 
             this->list_len = 0;
             pthread_mutex_init(&list_m, NULL);
@@ -82,10 +82,12 @@ class List
 			pthread_mutex_lock(&head->node_m);
 			Node* prev = head;
 			Node* curr = head->next;
+			//lock it if it's not null
 			if(curr!=NULL){
 			    pthread_mutex_lock(&curr->node_m);
 			}
 
+			//find the place
 			while(curr!= NULL && curr->data < data){
 			    pthread_mutex_unlock(&prev->node_m);
 			    prev = curr;
@@ -95,6 +97,7 @@ class List
 			    }
 			}
 
+			//insert first
 			if(curr == NULL){
 			    Node *new_node = new Node(data);
 			    prev->next = new_node;
@@ -107,12 +110,14 @@ class List
 			    return true;
 			}
 
+			//if data exist
 			if(curr->data == data){
                 pthread_mutex_unlock(&prev->node_m);
 			    pthread_mutex_unlock(&curr->node_m);
                 return false;
 			}
 
+			//insert
 			Node* new_node = new Node(data);
             prev->next = new_node;
 			new_node->next = curr;
@@ -148,11 +153,13 @@ class List
 			    }
 			}
 
+			//we did not find the data
 			if(curr == NULL){
 			    pthread_mutex_unlock(&prev->node_m);
 			    return false;
 			}
 
+			//data exist, delete it
 			if(curr->data == value){
 			    prev->next = curr->next;
 			    pthread_mutex_lock(&list_m);
