@@ -79,16 +79,16 @@ class List
 
 /// for testing only  // TODO: add this func to "ThreadSafeList.h" and make adjustments before the test, don't forget to remove before submit
     bool isSorted(){
-        pthread_mutex_lock(&isSorted_m);
-        if(!head) {
-            pthread_mutex_unlock(&isSorted_m);
+        pthread_mutex_lock(&this->list_m);
+        if(!head->next) {
+            pthread_mutex_unlock(&this->list_m);
             return true;
         }else{
-            pthread_mutex_lock(&head->node_m);
-            pthread_mutex_unlock(&isSorted_m);
+            pthread_mutex_lock(&head->next->node_m);
+            pthread_mutex_unlock(&this->list_m);
         }
-        Node* prev = head;
-        Node* curr = head->next;
+        Node* prev = head->next;
+        Node* curr = prev->next;
         while(curr) {
             pthread_mutex_lock(&curr->node_m);
             if(prev->data >= curr->data) {
@@ -103,9 +103,6 @@ class List
         pthread_mutex_unlock(&prev->node_m);
         return true;
     }
-         ////////////
-
-
         /**
          * Insert new node to list while keeping the list ordered in an ascending order
          * If there is already a node has the same data as @param data then return false (without adding it again)
