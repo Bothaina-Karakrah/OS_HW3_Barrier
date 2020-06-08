@@ -49,11 +49,14 @@ class List
          */
         List() { //TODO: add your implementation
             head = new Node();
-            if (!head)
-                cerr << "init list failed" << endl;
+            if (!head) {
+                cerr << "List: failed" << endl;
+                exit(-1);
+            }
 
             this->list_len = 0;
             pthread_mutex_init(&list_m, NULL);
+            pthread_mutex_init(&isSorted_m, NULL);
         }
 
         void listDistroy(Node* head){
@@ -69,7 +72,38 @@ class List
         ~List(){ //TODO: add your implementation
             listDistroy(this->head);
             pthread_mutex_destroy(&this->list_m);
+            pthread_mutex_destroy(&this->isSorted_m);
              }
+
+         ////added for test////
+
+/// for testing only  // TODO: add this func to "ThreadSafeList.h" and make adjustments before the test, don't forget to remove before submit
+    bool isSorted(){
+        pthread_mutex_lock(&isSorted_m);
+        if(!head) {
+            pthread_mutex_unlock(&isSorted_m);
+            return true;
+        }else{
+            pthread_mutex_lock(&head->node_m);
+            pthread_mutex_unlock(&isSorted_m);
+        }
+        Node* prev = head;
+        Node* curr = head->next;
+        while(curr) {
+            pthread_mutex_lock(&curr->node_m);
+            if(prev->data >= curr->data) {
+                pthread_mutex_unlock(&curr->node_m);
+                pthread_mutex_unlock(&prev->node_m);
+                return false;
+            }
+            pthread_mutex_unlock(&prev->node_m);
+            prev = curr;
+            curr = curr->next;
+        }
+        pthread_mutex_unlock(&prev->node_m);
+        return true;
+    }
+         ////////////
 
 
         /**
@@ -79,55 +113,71 @@ class List
          * @return true if a new node was added and false otherwise
          */
         bool insert(const T& data) {
-			pthread_mutex_lock(&head->node_m);
-			Node* prev = head;
-			Node* curr = head->next;
-			//lock it if it's not null
-			if(curr!=NULL){
-			    pthread_mutex_lock(&curr->node_m);
-			}
+            try {
 
-			//find the place
-			while(curr!= NULL && curr->data < data){
-			    pthread_mutex_unlock(&prev->node_m);
-			    prev = curr;
-			    curr = curr->next;
-			    if(curr!=NULL){
-			        pthread_mutex_lock(&curr->node_m);
-			    }
-			}
+                pthread_mutex_lock(&head->node_m);
+                Node *prev = head;
+                Node *curr = head->next;
+                //lock it if it's not null
+                if (curr != NULL) {
+                    pthread_mutex_lock(&curr->node_m);
+                }
 
-			//insert first
-			if(curr == NULL){
-			    Node *new_node = new Node(data);
-			    prev->next = new_node;
-			    new_node->next = NULL;
+                //find the place
+                while (curr != NULL && curr->data < data) {
+                    pthread_mutex_unlock(&prev->node_m);
+                    prev = curr;
+                    curr = curr->next;
+                    if (curr != NULL) {
+                        pthread_mutex_lock(&curr->node_m);
+                    }
+                }
+
+                //insert first
+                if (curr == NULL) {
+                    Node *new_node = new Node(data);
+                    if (!new_node){
+                        cerr << "insert: failed" << endl;
+                        exit(-1);
+                    }
+                    prev->next = new_node;
+                    new_node->next = NULL;
+                    pthread_mutex_lock(&list_m);
+                    list_len++;
+                    pthread_mutex_unlock(&list_m);
+                    __insert_test_hook();
+                    pthread_mutex_unlock(&prev->node_m);
+                    return true;
+                }
+
+                //if data exist
+                if (curr->data == data) {
+                    pthread_mutex_unlock(&prev->node_m);
+                    pthread_mutex_unlock(&curr->node_m);
+                    return false;
+                }
+
+                //insert
+                Node *new_node = new Node(data);
+                if (!new_node){
+                    cerr << "insert: failed" << endl;
+                    exit(-1);
+                }
+                prev->next = new_node;
+                new_node->next = curr;
                 pthread_mutex_lock(&list_m);
                 list_len++;
                 pthread_mutex_unlock(&list_m);
-			    __insert_test_hook();
-			    pthread_mutex_unlock(&prev->node_m);
-			    return true;
-			}
-
-			//if data exist
-			if(curr->data == data){
+                __insert_test_hook();
                 pthread_mutex_unlock(&prev->node_m);
-			    pthread_mutex_unlock(&curr->node_m);
-                return false;
-			}
+                pthread_mutex_unlock(&curr->node_m);
+                return true;
+            }
+            catch (...){
+                cerr << "insert: failed" << endl;
+                exit(-1);
+            }
 
-			//insert
-			Node* new_node = new Node(data);
-            prev->next = new_node;
-			new_node->next = curr;
-			pthread_mutex_lock(&list_m);
-			list_len++;
-			pthread_mutex_unlock(&list_m);
-			__insert_test_hook();
-			pthread_mutex_unlock(&prev->node_m);
-			pthread_mutex_unlock(&curr->node_m);
-			return true;
         }
 
         /**
@@ -136,44 +186,51 @@ class List
          * @return true if a matched node was found and removed and false otherwise
          */
         bool remove(const T& value) {
-			pthread_mutex_lock(&head->node_m);
-			Node* prev = head;
-			Node* curr = prev->next;
+            try {
+                pthread_mutex_lock(&head->node_m);
+                Node *prev = head;
+                Node *curr = prev->next;
 
-			if(curr != NULL){
-			    pthread_mutex_lock(&curr->node_m);
-			}
+                if (curr != NULL) {
+                    pthread_mutex_lock(&curr->node_m);
+                }
 
-			while(curr!= NULL && curr->data < value){
-			    pthread_mutex_unlock(&prev->node_m);
-			    prev = curr;
-			    curr = curr->next;
-			    if(curr!=NULL){
-			        pthread_mutex_lock(&curr->node_m);
-			    }
-			}
+                while (curr != NULL && curr->data < value) {
+                    pthread_mutex_unlock(&prev->node_m);
+                    prev = curr;
+                    curr = curr->next;
+                    if (curr != NULL) {
+                        pthread_mutex_lock(&curr->node_m);
+                    }
+                }
 
-			//we did not find the data
-			if(curr == NULL){
-			    pthread_mutex_unlock(&prev->node_m);
-			    return false;
-			}
+                //we did not find the data
+                if (curr == NULL) {
+                    pthread_mutex_unlock(&prev->node_m);
+                    return false;
+                }
 
-			//data exist, delete it
-			if(curr->data == value){
-			    prev->next = curr->next;
-			    pthread_mutex_lock(&list_m);
-			    list_len--;
-			    pthread_mutex_unlock(&list_m);
-			    __remove_test_hook();
-			    pthread_mutex_unlock(&prev->node_m);
-			    pthread_mutex_unlock(&curr->node_m);
-			    return true;
-			}
+                //data exist, delete it
+                if (curr->data == value) {
+                    prev->next = curr->next;
+                    pthread_mutex_lock(&list_m);
+                    list_len--;
+                    pthread_mutex_unlock(&list_m);
+                    __remove_test_hook();
+                    pthread_mutex_unlock(&prev->node_m);
+                    pthread_mutex_unlock(&curr->node_m);
+                    return true;
+                }
 
-            pthread_mutex_unlock(&prev->node_m);
-            pthread_mutex_unlock(&curr->node_m);
-            return false;
+                pthread_mutex_unlock(&prev->node_m);
+                pthread_mutex_unlock(&curr->node_m);
+                return false;
+            }
+            catch (...){
+                cerr << "remove: failed" << endl;
+                exit(-1);
+            }
+
         }
 
         /**
@@ -219,6 +276,7 @@ class List
         Node* head;
         unsigned int list_len;
         pthread_mutex_t  list_m;
+        pthread_mutex_t  isSorted_m;
 };
 
 #endif //THREAD_SAFE_LIST_H_
